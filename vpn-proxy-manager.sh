@@ -1,38 +1,49 @@
 #!/bin/bash
 
-# تغییر نکنه: مسیرها و متغیرهای اصلی
 CONFIG_FILE="$HOME/.vpnproxy.conf"
 VPN_PID_FILE="/tmp/openconnect.pid"
 PROXY_PORT="9080"
 ALIAS_FILE="/usr/local/bin/vpnproxymanager"
 
-# پیام خوش‌آمدی ساده‌تر
 function welcome_message() {
     clear
-    echo "============================================="
-    echo "  Welcome to VPN Proxy Manager - خوش‌اومدی!  "
-    echo "  Manage VPN + Proxy simply and securely     "
-    echo "  ابزار ساده برای اتصال امن به VPN و پراکسی     "
-    echo "============================================="
+    echo "=============================================="
+    echo "  Welcome to VPN Proxy Manager (Tinyproxy)   "
+    echo "  اتصال امن به VPN و پراکسی سبک با Tinyproxy  "
+    echo "=============================================="
     sleep 1
+    check_status
 }
 
-# منوی سبک و تمیز
+function check_status() {
+    echo ""
+    if [ -f "$VPN_PID_FILE" ] && ps -p $(cat "$VPN_PID_FILE") > /dev/null; then
+        echo "✅ VPN: Connected"
+    else
+        echo "❌ VPN: Not Connected"
+    fi
+
+    if systemctl is-active --quiet tinyproxy; then
+        echo "✅ Proxy: Active"
+    else
+        echo "❌ Proxy: Inactive"
+    fi
+    echo ""
+}
+
 function menu() {
     welcome_message
-    echo ""
-    echo "🔹 Main Menu / منوی اصلی"
-    echo ""
     echo "[1] Install Dependencies       نصب ابزارها"
     echo "[2] Uninstall Everything        حذف کامل"
-    echo "[3] Enter VPN Credentials       ورود اطلاعات VPN"
-    echo "[4] Edit VPN Credentials        ویرایش اطلاعات VPN"
-    echo "[5] Setup Proxy Port            ساخت پراکسی با پورت دلخواه"
-    echo "[6] Enable Auto-Connect         فعال‌سازی اتصال خودکار"
+    echo "[3] Set VPN Credentials         اطلاعات VPN"
+    echo "[4] Edit VPN Credentials        ویرایش VPN"
+    echo "[5] Setup Proxy Port            تنظیم پورت پراکسی"
+    echo "[6] Enable Auto-Connect         اتصال خودکار"
     echo "[7] Full Auto Setup             اجرای همه مراحل"
-    echo "[8] Exit                        خروج"
+    echo "[8] Test Proxy                  تست اتصال پراکسی"
+    echo "[9] Exit                        خروج"
     echo ""
-    read -p "👉 Your choice (گزینه): " choice
+    read -p "👉 Your choice: " choice
 
     case $choice in
         1) install_dependencies ;;
@@ -42,32 +53,55 @@ function menu() {
         5) setup_proxy ;;
         6) enable_autostart ;;
         7) full_auto_setup ;;
-        8) exit 0 ;;
+        8) test_proxy ;;
+        9) exit 0 ;;
         *) echo "⛔ Invalid choice!" ;;
     esac
 }
 
-# تابع‌های اصلی همون قبلیا هستن: نصب، حذف، اتصال، ساخت میانبر
 function install_dependencies() {
     sudo apt update
-    sudo apt install -y openconnect privoxy
-    sudo systemctl enable privoxy
+    sudo apt install -y openconnect tinyproxy
+    sudo systemctl enable tinyproxy
     echo "✅ Dependencies installed!"
     sleep 1
 }
 
 function uninstall_all() {
-    sudo apt remove --purge -y openconnect privoxy
-    sudo rm -f "$CONFIG_FILE" "$VPN_PID_FILE" "$ALIAS_FILE" /etc/systemd/system/vpnproxy.service
-    echo "✔ All files removed."
+    echo "🧹 Cleaning up all components..."
+
+    sudo systemctl stop tinyproxy 2>/dev/null
+    sudo systemctl stop vpnproxy 2>/dev/null
+    sudo systemctl disable vpnproxy 2>/dev/null
+    sudo rm -f /etc/systemd/system/vpnproxy.service
+    sudo systemctl daemon-reexec
+
+    sudo apt remove --purge -y openconnect tinyproxy
+    sudo apt autoremove -y
+
+    sudo rm -f "$CONFIG_FILE" "$VPN_PID_FILE" "$ALIAS_FILE"
+    sudo sed -i "s/^Port .*/Port 8888/" /etc/tinyproxy/tinyproxy.conf 2>/dev/null
+    sudo sed -i "s/^Allow .*/Allow 127.0.0.1/" /etc/tinyproxy/tinyproxy.conf 2>/dev/null
+
+    echo "✅ Removed successfully."
     sleep 1
 }
 
 function set_vpn_config() {
-    read -p "Server Address (آدرس سرور): " VPN_SERVER
-    read -p "Username (نام کاربری): " VPN_USERNAME
-    read -s -p "Password (رمز): " VPN_PASSWORD
-    echo ""
+    read -p "Server Address: " VPN_SERVER
+    read -p "Username: " VPN_USERNAME
+
+    while true; do
+        read -p "Password: " VPN_PASSWORD
+        echo "🔐 You entered: $VPN_PASSWORD"
+        read -p "Is this correct? (y/n): " confirm
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+            break
+        else
+            echo "↩️ Let's try again."
+        fi
+    done
+
     echo "VPN_SERVER=$VPN_SERVER" > "$CONFIG_FILE"
     echo "VPN_USERNAME=$VPN_USERNAME" >> "$CONFIG_FILE"
     echo "VPN_PASSWORD=$VPN_PASSWORD" >> "$CONFIG_FILE"
@@ -85,13 +119,16 @@ function edit_vpn_config() {
 }
 
 function setup_proxy() {
-    read -p "Use default port 9080? (y/n): " answer
-    if [[ "$answer" == "n" ]]; then
-        read -p "Enter desired port: " PROXY_PORT
+    read -p "Enter proxy port (default $PROXY_PORT): " input_port
+    if [[ "$input_port" != "" ]]; then
+        PROXY_PORT="$input_port"
     fi
-    sudo sed -i "/^listen-address/c\listen-address  127.0.0.1:$PROXY_PORT" /etc/privoxy/config
-    sudo systemctl restart privoxy
-    echo "✅ Proxy running at 127.0.0.1:$PROXY_PORT"
+
+    sudo sed -i "s/^Port .*/Port $PROXY_PORT/" /etc/tinyproxy/tinyproxy.conf
+    sudo sed -i "s/^Allow .*/Allow 127.0.0.1/" /etc/tinyproxy/tinyproxy.conf
+    echo "PROXY_PORT=$PROXY_PORT" >> "$CONFIG_FILE"
+    sudo systemctl restart tinyproxy
+    echo "✅ Tinyproxy running at http://127.0.0.1:$PROXY_PORT"
     sleep 1
 }
 
@@ -134,22 +171,28 @@ EOF
 function auto_start() {
     source "$CONFIG_FILE"
     connect_vpn
-    sudo systemctl restart privoxy
+    sudo systemctl restart tinyproxy
 }
 
 function full_auto_setup() {
-    welcome_message
     install_dependencies
     create_system_alias
     set_vpn_config
     setup_proxy
     connect_vpn
     enable_autostart
-    echo "🎉 All steps completed!"
+    echo "🎉 All setup done!"
     sleep 1
 }
 
-# اجرای خودکار هنگام بوت
+function test_proxy() {
+    source "$CONFIG_FILE"
+    echo "🧪 Testing proxy at 127.0.0.1:$PROXY_PORT..."
+    curl -x 127.0.0.1:$PROXY_PORT http://ifconfig.me/ip
+    echo ""
+    sleep 1
+}
+
 if [[ "$1" == "auto_start" ]]; then
     auto_start
 else
