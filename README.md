@@ -9,7 +9,9 @@
 
 ✅ فقط کافیه اینو بزنی:
 
+```bash
 vpnproxymanager
+```
 
 و منوی مدیریتی ظاهر می‌شه!
 
@@ -31,12 +33,16 @@ vpnproxymanager
 
 برای نصب و اجرای اسکریپت، این دستورات رو وارد کن:
 
+```bash
 chmod +x vpn-proxy-manager.sh  
 ./vpn-proxy-manager.sh
+```
 
 ✅ بعد از نصب، هر بار فقط بنویس:
 
+```bash
 vpnproxymanager
+```
 
 و وارد منوی کامل مدیریت اتصال شو!
 
