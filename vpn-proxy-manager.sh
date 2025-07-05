@@ -1,100 +1,115 @@
 #!/bin/bash
 
+# تغییر نکنه: مسیرها و متغیرهای اصلی
 CONFIG_FILE="$HOME/.vpnproxy.conf"
 VPN_PID_FILE="/tmp/openconnect.pid"
 PROXY_PORT="9080"
 ALIAS_FILE="/usr/local/bin/vpnproxymanager"
 
-# 💾 ذخیره تنظیمات
-function save_config() {
-    echo "VPN_SERVER=$VPN_SERVER" > "$CONFIG_FILE"
-    echo "VPN_USERNAME=$VPN_USERNAME" >> "$CONFIG_FILE"
-    echo "VPN_PASSWORD=$VPN_PASSWORD" >> "$CONFIG_FILE"
-    echo "PROXY_PORT=$PROXY_PORT" >> "$CONFIG_FILE"
-}
-
-# 📤 بارگذاری تنظیمات
-function load_config() {
-    if [ -f "$CONFIG_FILE" ]; then
-        source "$CONFIG_FILE"
-    fi
-}
-
-# 👋 نمایش پیام خوش‌آمدگویی
+# پیام خوش‌آمدی ساده‌تر
 function welcome_message() {
     clear
-    echo -e "\e[96m╔═════════════════════════════════════════════════╗"
-    echo -e "\e[96m║        🎉 خوش‌اومدی به VPN Proxy Manager        ║"
-    echo -e "\e[96m║      طراحی‌شده برای اتصال امن و ساده شبکه      ║"
-    echo -e "\e[96m╚═════════════════════════════════════════════════╝\e[0m"
+    echo "============================================="
+    echo "  Welcome to VPN Proxy Manager - خوش‌اومدی!  "
+    echo "  Manage VPN + Proxy simply and securely     "
+    echo "  ابزار ساده برای اتصال امن به VPN و پراکسی     "
+    echo "============================================="
+    sleep 1
+}
+
+# منوی سبک و تمیز
+function menu() {
+    welcome_message
     echo ""
-    sleep 2
+    echo "🔹 Main Menu / منوی اصلی"
+    echo ""
+    echo "[1] Install Dependencies       نصب ابزارها"
+    echo "[2] Uninstall Everything        حذف کامل"
+    echo "[3] Enter VPN Credentials       ورود اطلاعات VPN"
+    echo "[4] Edit VPN Credentials        ویرایش اطلاعات VPN"
+    echo "[5] Setup Proxy Port            ساخت پراکسی با پورت دلخواه"
+    echo "[6] Enable Auto-Connect         فعال‌سازی اتصال خودکار"
+    echo "[7] Full Auto Setup             اجرای همه مراحل"
+    echo "[8] Exit                        خروج"
+    echo ""
+    read -p "👉 Your choice (گزینه): " choice
+
+    case $choice in
+        1) install_dependencies ;;
+        2) uninstall_all ;;
+        3) set_vpn_config ;;
+        4) edit_vpn_config ;;
+        5) setup_proxy ;;
+        6) enable_autostart ;;
+        7) full_auto_setup ;;
+        8) exit 0 ;;
+        *) echo "⛔ Invalid choice!" ;;
+    esac
 }
 
-# 🏷 ساخت میانبر دائمی
-function create_system_alias() {
-    if [ ! -f "$ALIAS_FILE" ]; then
-        sudo cp "$0" "$ALIAS_FILE"
-        sudo chmod +x "$ALIAS_FILE"
-        echo -e "\e[95m🔗 میانبر vpnproxymanager ساخته شد. حالا فقط کافیه بنویسی: vpnproxymanager\e[0m"
-        sleep 1
-    fi
-}
-
-# ⬇ نصب ابزارها
+# تابع‌های اصلی همون قبلیا هستن: نصب، حذف، اتصال، ساخت میانبر
 function install_dependencies() {
     sudo apt update
     sudo apt install -y openconnect privoxy
     sudo systemctl enable privoxy
+    echo "✅ Dependencies installed!"
+    sleep 1
 }
 
-# 🧹 حذف همه چیز
 function uninstall_all() {
     sudo apt remove --purge -y openconnect privoxy
     sudo rm -f "$CONFIG_FILE" "$VPN_PID_FILE" "$ALIAS_FILE" /etc/systemd/system/vpnproxy.service
-    echo -e "\e[91m✔ همه چیز پاک شد.\e[0m"
+    echo "✔ All files removed."
+    sleep 1
 }
 
-# 🖥 ورود مشخصات اتصال
 function set_vpn_config() {
-    read -p "🖧 آدرس سرور VPN: " VPN_SERVER
-    read -p "👤 نام کاربری: " VPN_USERNAME
-    read -s -p "🔒 رمز عبور: " VPN_PASSWORD
+    read -p "Server Address (آدرس سرور): " VPN_SERVER
+    read -p "Username (نام کاربری): " VPN_USERNAME
+    read -s -p "Password (رمز): " VPN_PASSWORD
     echo ""
-    save_config
-    echo -e "\e[92m💾 اطلاعات ذخیره شد.\e[0m"
+    echo "VPN_SERVER=$VPN_SERVER" > "$CONFIG_FILE"
+    echo "VPN_USERNAME=$VPN_USERNAME" >> "$CONFIG_FILE"
+    echo "VPN_PASSWORD=$VPN_PASSWORD" >> "$CONFIG_FILE"
+    echo "PROXY_PORT=$PROXY_PORT" >> "$CONFIG_FILE"
+    echo "✅ VPN info saved!"
+    sleep 1
 }
 
-# 🛠 ویرایش مشخصات
 function edit_vpn_config() {
-    load_config
-    echo -e "\e[96m✅ تنظیمات فعلی:"
-    echo "📍 سرور: $VPN_SERVER"
-    echo "👤 کاربر: $VPN_USERNAME"
-    echo "🔒 رمز: (مخفی شده)\e[0m"
+    source "$CONFIG_FILE"
+    echo "Current Server: $VPN_SERVER"
+    echo "Current Username: $VPN_USERNAME"
+    echo "(Password hidden)"
     set_vpn_config
 }
 
-# 🌐 تنظیم پراکسی
 function setup_proxy() {
-    read -p "🌀 استفاده از پورت 9080؟ (y/n): " answer
+    read -p "Use default port 9080? (y/n): " answer
     if [[ "$answer" == "n" ]]; then
-        read -p "🔢 پورت دلخواه رو وارد کن: " PROXY_PORT
+        read -p "Enter desired port: " PROXY_PORT
     fi
     sudo sed -i "/^listen-address/c\listen-address  127.0.0.1:$PROXY_PORT" /etc/privoxy/config
-    save_config
     sudo systemctl restart privoxy
-    echo -e "\e[92m✅ پراکسی در 127.0.0.1:$PROXY_PORT فعال شد.\e[0m"
+    echo "✅ Proxy running at 127.0.0.1:$PROXY_PORT"
+    sleep 1
 }
 
-# 🔗 اتصال به VPN
 function connect_vpn() {
-    load_config
+    source "$CONFIG_FILE"
     echo "$VPN_PASSWORD" | sudo openconnect --background --pid-file="$VPN_PID_FILE" --user="$VPN_USERNAME" "$VPN_SERVER"
-    echo -e "\e[92m🔗 VPN فعال شد.\e[0m"
+    echo "🔗 VPN connected!"
+    sleep 1
 }
 
-# 🔁 فعال‌سازی بعد ری‌استارت
+function create_system_alias() {
+    if [ ! -f "$ALIAS_FILE" ]; then
+        sudo cp "$0" "$ALIAS_FILE"
+        sudo chmod +x "$ALIAS_FILE"
+        echo "🔗 Shortcut created: vpnproxymanager"
+    fi
+}
+
 function enable_autostart() {
     AUTOSTART_SCRIPT="/etc/systemd/system/vpnproxy.service"
     sudo bash -c "cat > $AUTOSTART_SCRIPT" <<EOF
@@ -112,17 +127,16 @@ EOF
 
     sudo systemctl daemon-reexec
     sudo systemctl enable vpnproxy
-    echo -e "\e[96m🔁 اتصال خودکار فعال شد.\e[0m"
+    echo "🔁 Autostart enabled."
+    sleep 1
 }
 
-# 🔒 اجرای خودکار پس از بوت
 function auto_start() {
-    load_config
+    source "$CONFIG_FILE"
     connect_vpn
     sudo systemctl restart privoxy
 }
 
-# ⚡ اجرای کامل همه مراحل
 function full_auto_setup() {
     welcome_message
     install_dependencies
@@ -131,47 +145,15 @@ function full_auto_setup() {
     setup_proxy
     connect_vpn
     enable_autostart
-    echo -e "\e[92m🎉 همه‌چیز آماده‌ست! فقط بنویس vpnproxymanager و شروع کن.\e[0m"
+    echo "🎉 All steps completed!"
+    sleep 1
 }
 
-# 🎮 منوی رنگی
-function menu() {
-    welcome_message
-    create_system_alias
-    echo -e "\e[96m╔══════════════════════════════════════╗"
-    echo -e "\e[96m║      🚀 VPN + Proxy Setup Menu       ║"
-    echo -e "\e[96m╚══════════════════════════════════════╝\e[0m"
-    echo -e "\e[92m1️⃣  نصب ابزارهای Cisco VPN و پراکسی\e[0m"
-    echo -e "\e[91m2️⃣  حذف کامل تنظیمات و فایل‌ها\e[0m"
-    echo -e "\e[93m3️⃣  ورود اطلاعات اتصال VPN\e[0m"
-    echo -e "\e[94m4️⃣  ویرایش اطلاعات اتصال VPN\e[0m"
-    echo -e "\e[95m5️⃣  ساخت پراکسی روی پورت دلخواه\e[0m"
-    echo -e "\e[96m6️⃣  فعال‌سازی اتصال خودکار بعد ری‌استارت\e[0m"
-    echo -e "\e[92m7️⃣  اجرای کامل همه مراحل به‌صورت خودکار\e[0m"
-    echo -e "\e[90m8️⃣  خروج از منو\e[0m"
-    echo ""
-
-    read -p "🎯 گزینه موردنظر رو وارد کن: " choice
-    case $choice in
-        1) install_dependencies ;;
-        2) uninstall_all ;;
-        3) set_vpn_config ;;
-        4) edit_vpn_config ;;
-        5) setup_proxy ;;
-        6) enable_autostart ;;
-        7) full_auto_setup ;;
-        8) exit 0 ;;
-        *) echo -e "\e[91m⛔ گزینه نامعتبره!\e[0m" ;;
-    esac
-}
-
-# اجرای خودکار در بوت
+# اجرای خودکار هنگام بوت
 if [[ "$1" == "auto_start" ]]; then
     auto_start
 else
-    menu
     while true; do
-        read -p "⏎ برای ادامه Enter بزن..." dummy
         menu
     done
 fi
