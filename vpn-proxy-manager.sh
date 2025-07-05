@@ -58,7 +58,7 @@ function menu() {
         6) enable_autostart ;;
         7) full_auto_setup ;;
         8) test_proxy ;;
-        9) exit 0 ;;
+        9) farewell_message ;;
         10) connect_vpn ;;
         11) disconnect_vpn ;;
         12) start_proxy ;;
@@ -77,20 +77,16 @@ function install_dependencies() {
 
 function uninstall_all() {
     echo "🧹 Cleaning up all components..."
-
     sudo systemctl stop tinyproxy 2>/dev/null
     sudo systemctl stop vpnproxy 2>/dev/null
     sudo systemctl disable vpnproxy 2>/dev/null
     sudo rm -f /etc/systemd/system/vpnproxy.service
     sudo systemctl daemon-reexec
-
     sudo apt remove --purge -y openconnect tinyproxy
     sudo apt autoremove -y
-
     sudo rm -f "$CONFIG_FILE" "$VPN_PID_FILE" "$ALIAS_FILE"
     sudo sed -i "s/^Port .*/Port 8888/" /etc/tinyproxy/tinyproxy.conf 2>/dev/null
     sudo sed -i "s/^Allow .*/Allow 127.0.0.1/" /etc/tinyproxy/tinyproxy.conf 2>/dev/null
-
     echo "✅ Removed successfully."
     sleep 1
 }
@@ -98,7 +94,6 @@ function uninstall_all() {
 function set_vpn_config() {
     read -p "Server Address: " VPN_SERVER
     read -p "Username: " VPN_USERNAME
-
     while true; do
         read -p "Password: " VPN_PASSWORD
         echo "🔐 You entered: $VPN_PASSWORD"
@@ -109,7 +104,6 @@ function set_vpn_config() {
             echo "↩️ Let's try again."
         fi
     done
-
     echo "VPN_SERVER=$VPN_SERVER" > "$CONFIG_FILE"
     echo "VPN_USERNAME=$VPN_USERNAME" >> "$CONFIG_FILE"
     echo "VPN_PASSWORD=$VPN_PASSWORD" >> "$CONFIG_FILE"
@@ -131,7 +125,6 @@ function setup_proxy() {
     if [[ "$input_port" != "" ]]; then
         PROXY_PORT="$input_port"
     fi
-
     sudo sed -i "s/^Port .*/Port $PROXY_PORT/" /etc/tinyproxy/tinyproxy.conf
     sudo sed -i "s/^Allow .*/Allow 127.0.0.1/" /etc/tinyproxy/tinyproxy.conf
     echo "PROXY_PORT=$PROXY_PORT" >> "$CONFIG_FILE"
@@ -189,15 +182,12 @@ function enable_autostart() {
 [Unit]
 Description=VPN + Proxy Auto Start
 After=network.target
-
 [Service]
 ExecStart=/bin/bash $ALIAS_FILE auto_start
 RemainAfterExit=true
-
 [Install]
 WantedBy=multi-user.target
 EOF
-
     sudo systemctl daemon-reexec
     sudo systemctl enable vpnproxy
     echo "🔁 Autostart enabled."
@@ -227,6 +217,15 @@ function test_proxy() {
     curl -x 127.0.0.1:$PROXY_PORT http://ifconfig.me/ip
     echo ""
     sleep 1
+}
+
+function farewell_message() {
+    echo ""
+    echo "👋 See you later, sazdehani!"
+    echo "🔐 VPN & Proxy will remain active unless you turn them off."
+    echo "🧹 You can always come back using: vpnproxymanager"
+    echo ""
+    exit 0
 }
 
 if [[ "$1" == "auto_start" ]]; then
