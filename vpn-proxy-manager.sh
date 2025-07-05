@@ -42,6 +42,10 @@ function menu() {
     echo "[7] Full Auto Setup             اجرای همه مراحل"
     echo "[8] Test Proxy                  تست اتصال پراکسی"
     echo "[9] Exit                        خروج"
+    echo "[10] Connect VPN                روشن کردن VPN"
+    echo "[11] Disconnect VPN             خاموش کردن VPN"
+    echo "[12] Start Proxy                روشن کردن پراکسی"
+    echo "[13] Stop Proxy                 خاموش کردن پراکسی"
     echo ""
     read -p "👉 Your choice: " choice
 
@@ -55,6 +59,10 @@ function menu() {
         7) full_auto_setup ;;
         8) test_proxy ;;
         9) exit 0 ;;
+        10) connect_vpn ;;
+        11) disconnect_vpn ;;
+        12) start_proxy ;;
+        13) stop_proxy ;;
         *) echo "⛔ Invalid choice!" ;;
     esac
 }
@@ -134,8 +142,36 @@ function setup_proxy() {
 
 function connect_vpn() {
     source "$CONFIG_FILE"
-    echo "$VPN_PASSWORD" | sudo openconnect --background --pid-file="$VPN_PID_FILE" --user="$VPN_USERNAME" "$VPN_SERVER"
-    echo "🔗 VPN connected!"
+    echo "$VPN_PASSWORD" | sudo openconnect \
+        --no-cert-check \
+        --background \
+        --pid-file="$VPN_PID_FILE" \
+        --user="$VPN_USERNAME" \
+        "$VPN_SERVER"
+    echo "🔗 VPN connected (SSL check disabled)"
+    sleep 1
+}
+
+function disconnect_vpn() {
+    if [ -f "$VPN_PID_FILE" ]; then
+        VPN_PID=$(cat "$VPN_PID_FILE")
+        sudo kill "$VPN_PID" && rm "$VPN_PID_FILE"
+        echo "🔌 VPN connection terminated."
+    else
+        echo "ℹ️ VPN was not connected."
+    fi
+    sleep 1
+}
+
+function start_proxy() {
+    sudo systemctl start tinyproxy
+    echo "🟢 Proxy service started."
+    sleep 1
+}
+
+function stop_proxy() {
+    sudo systemctl stop tinyproxy
+    echo "🔴 Proxy service stopped."
     sleep 1
 }
 
