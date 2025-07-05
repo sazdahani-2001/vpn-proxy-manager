@@ -36,7 +36,9 @@ vpnproxymanager
 برای نصب سریع و خودکار از گیت‌هاب، فقط این دستور را در ترمینال وارد کن:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/sazdahani-2001/vpn-proxy-manager/main/vpn-proxy-manager.sh | bash
+curl -o vpn-proxy-manager.sh https://raw.githubusercontent.com/sazdahani-2001/vpn-proxy-manager/main/vpn-proxy-manager.sh
+chmod +x vpn-proxy-manager.sh
+./vpn-proxy-manager.sh
 ```
 
 ✅ پس از نصب، برای اجرای مجدد فقط بنویس:
